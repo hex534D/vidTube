@@ -1,0 +1,11 @@
+# Logs
+*.log
+
+# Dependency
+/node_modules
+/dist
+/.vscode
+
+# dotenv env files
+.env
+.env.sample
