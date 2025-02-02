@@ -3,6 +3,7 @@ import morgan from 'morgan';
 import cors from 'cors';
 
 import logger from './logging/logger';
+import healthCheckRouter from './routes/healthcheck.routes';
 
 const app = express();
 const morganFormat = ':method :url :status :response-time ms';
@@ -18,7 +19,7 @@ app.use(
 // common express middleware
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ limit: '16kb', extended: true }));
-app.use(express.static('public'))
+app.use(express.static('public'));
 
 // logging middleware
 app.use(
@@ -36,5 +37,8 @@ app.use(
     },
   })
 );
+
+// routes
+app.use('/api/v1/healthcheck', healthCheckRouter);
 
 export { app };
