@@ -1,9 +1,12 @@
-import express from 'express';
-import morgan from 'morgan';
 import cors from 'cors';
+import morgan from 'morgan';
+import express from 'express';
+import cookieParser from 'cookie-parser';
 
 import logger from './logging/logger';
+import userRouter from './routes/user.routes';
 import healthCheckRouter from './routes/healthcheck.routes';
+import errorHandler from './middlewares/error.middleware';
 
 const app = express();
 const morganFormat = ':method :url :status :response-time ms';
@@ -20,6 +23,7 @@ app.use(
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ limit: '16kb', extended: true }));
 app.use(express.static('public'));
+app.use(cookieParser());
 
 // logging middleware
 app.use(
@@ -40,5 +44,7 @@ app.use(
 
 // routes
 app.use('/api/v1/healthcheck', healthCheckRouter);
+app.use('/api/v1/users', userRouter);
 
+app.use(errorHandler);
 export { app };

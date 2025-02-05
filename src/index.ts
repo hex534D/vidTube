@@ -5,7 +5,6 @@ import { app } from './app';
 import logger from './logging/logger';
 import databaseConnection from './db/connection';
 
-
 const PORT = process.env.PORT || 8001;
 
 app.listen(PORT, async () => {
