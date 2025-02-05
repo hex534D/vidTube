@@ -7,10 +7,9 @@ import logger from '../logging/logger';
 
 const registerUser = asyncHandler(async (req: any, res: any, next: any) => {
   const { fullName, email, username, password } = req.body;
-  console.log(fullName, email, username, password);
 
   // TODO add proper validation
-  if ([fullName, email, username, password].some(val => val?.trim() == ''))
+  if (![fullName, email, username, password].every(val => val?.trim() == ''))
     throw new CustomError('All fields are required', 400);
 
   const existingUser = await User.findOne({ $or: [{ username }, { email }] });
