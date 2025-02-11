@@ -1,9 +1,20 @@
-import mongoose, { Schema } from 'mongoose';
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import mongoose, { Model, Schema } from 'mongoose';
+
+import { IUser } from '../utils/interfaces';
 import { JWT_SECRET, REFRESH_TOKEN_SECRET } from '../constants';
 
-const userSchema = new Schema(
+interface IUserMethods {
+  comparePassword(password: string): boolean;
+  generateAccessToken(): string;
+  generateRefreshToken(): string
+}
+
+type UserModel = Model<IUser, {}, IUserMethods>;
+
+
+const userSchema = new Schema<IUser, UserModel, IUserMethods>(
   {
     username: {
       type: String,
@@ -58,11 +69,15 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-userSchema.methods.comparePassword = async function (password: string) {
-  return await bcrypt.compare(password, this.password);
-};
+// schema.method('fullName', function fullName() {
+//   return this.firstName + ' ' + this.lastName;
+// });
 
-userSchema.methods.generateAccessToken = function () {
+userSchema.method('comparePassword', async function (password: string) {
+  return await bcrypt.compare(password, this.password);
+});
+
+userSchema.method('generateAccessToken', function () {
   return jwt.sign(
     {
       _id: this._id,
@@ -73,12 +88,12 @@ userSchema.methods.generateAccessToken = function () {
     JWT_SECRET,
     { expiresIn: '1d' }
   );
-};
+});
 
-userSchema.methods.generateRefreshToken = function () {
+userSchema.method('generateRefreshToken', function () {
   return jwt.sign({
     _id: this._id
   }, REFRESH_TOKEN_SECRET, { expiresIn: '1d' })
-};
+});
 
-export const User = mongoose.model('User', userSchema);
+export const User = mongoose.model<IUser, UserModel>('User', userSchema);
