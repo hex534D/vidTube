@@ -1,34 +1,55 @@
-import { User } from '../models/user.model';
-import { error, success } from '../utils/response-handler';
-import { asyncHandler } from '../utils/asyncHandler';
-import { deleteFromCloudinary, uploadToCloudinary } from '../utils/cloudinary';
-import CustomError from '../utils/custom-error';
+import jwt from 'jsonwebtoken';
+
 import logger from '../logging/logger';
+import { User } from '../models/user.model';
+import { createError } from '../utils/custom-error';
+import { asyncHandler } from '../utils/asyncHandler';
+import { error, success } from '../utils/response-handler';
+import { deleteFromCloudinary, uploadToCloudinary } from '../utils/cloudinary';
+import { REFRESH_TOKEN_SECRET } from '../constants';
+
+const generateAccessAndRefreshToken = async (userId: string) => {
+  try {
+    const user = await User.findById({ _id: userId });
+
+    if (!user) return createError('No user found to create a token', 400);
+
+    const accessToken = await user?.generateAccessToken()
+    const refreshToken = await user?.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    logger.error(error);
+    createError('Error in generating access and refresh token', 400);
+  }
+};
 
 const registerUser = asyncHandler(async (req: any, res: any, next: any) => {
+  let avatar, coverImage, user;
   const { fullName, email, username, password } = req.body;
-  console.log(fullName, email, username, password);
 
   // TODO add proper validation
-  if ([fullName, email, username, password].some(val => val?.trim() == ''))
-    throw new CustomError('All fields are required', 400);
+  if (!(fullName && email && username && password))
+    next(createError('All fields are required', 400));
 
   const existingUser = await User.findOne({ $or: [{ username }, { email }] });
 
   if (existingUser) {
-    throw new CustomError('User with email or username already exists.', 400);
+    next(createError('User with email or username already exists.', 400));
   }
 
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
   const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
 
-  if (!avatarLocalPath) next(new Error('Avatar file is missing.'));
-  let avatar, coverImage, user;
+  if (!avatarLocalPath) next(createError('Avatar file is missing.', 400));
+
   avatar = await uploadToCloudinary(avatarLocalPath);
   if (coverImageLocalPath)
     coverImage = await uploadToCloudinary(coverImageLocalPath);
   try {
-
     user = await User.create({
       fullName,
       username,
@@ -38,24 +59,88 @@ const registerUser = asyncHandler(async (req: any, res: any, next: any) => {
       avatar: avatar?.url,
     });
 
-    const createdUser = await User.findById({ email: user?.email });
+    const createdUser = await User.findById({ _id: user?._id }).select(
+      '-password'
+    );
 
     if (createdUser)
-      res.status(201).json(success(201, 'User created successfully', user));
-    else throw new Error('Error in creating user');
+      return res
+        .status(201)
+        .json(success(201, 'User created successfully', createdUser));
+    else next(createError('Error in creating user'));
   } catch (error) {
     if (avatar) await deleteFromCloudinary(avatar.public_id);
     if (coverImage) await deleteFromCloudinary(coverImage.public_id);
     logger.error(error);
-    logger.error(
-      'Something went wrong while creating user, Images are removed from Cloudinary.'
-    );
 
-    throw new CustomError(
-      'Something went wrong while creating user, Images are removed from Cloudinary.',
-      400
+    next(
+      createError(
+        'Something went wrong while creating user, Images are removed from Cloudinary.',
+        400
+      )
     );
   }
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req: any, res: any) => {
+  const { email, username, password } = req.body;
+
+  if (!email && !username && !password)
+    createError('All fields are required', 400);
+
+  const user = await User.findOne({
+    $or: [{ username }, { email }],
+  });
+
+  if (!user) return createError('User not found!', 404);
+
+  // validate password
+  const isUserValid = await user.comparePassword(password);
+
+  if (!isUserValid) createError('Invalid credentials', 404);
+
+  const { accessToken, refreshToken } = (await generateAccessAndRefreshToken(
+    user._id.toString()
+  )) as any;
+
+  const loggedInUser = await User.findById(user?._id).select(
+    '-password-refreshToken'
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+  };
+
+  return res
+    .status(200)
+    .cookie('accessToken', accessToken, options)
+    .cookie('refreshToken', refreshToken, options)
+    .json(
+      success(200, 'User Logged in successfully', {
+        user: loggedInUser,
+        accessToken,
+        refreshToken,
+      })
+    );
+});
+
+const refreshAccessToken = asyncHandler(async (req: any, res: any) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+
+  if (!incomingRefreshToken) createError('Refresh Token is required!', 401);
+
+  try {
+    const decodedToken = (await jwt.verify(
+      incomingRefreshToken,
+      REFRESH_TOKEN_SECRET
+    )) as any;
+
+    const user = await User.findById(decodedToken?._id);
+
+    if (!user) createError('Invalid refresh token', 401);
+  } catch (error) {}
+});
+
+export { registerUser, loginUser };
