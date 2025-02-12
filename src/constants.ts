@@ -9,6 +9,11 @@ const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || '';
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || '';
 const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || '';
 
+const options = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+};
+
 export {
   DB_NAME,
   MONGO_URI,
@@ -18,5 +23,6 @@ export {
   REFRESH_TOKEN_SECRET,
   CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET,
-  CLOUDINARY_CLOUD_NAME
-}
+  CLOUDINARY_CLOUD_NAME,
+  options
+};
