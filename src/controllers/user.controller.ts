@@ -6,7 +6,7 @@ import { createError } from '../utils/custom-error';
 import { asyncHandler } from '../utils/asyncHandler';
 import { error, success } from '../utils/response-handler';
 import { deleteFromCloudinary, uploadToCloudinary } from '../utils/cloudinary';
-import { REFRESH_TOKEN_SECRET } from '../constants';
+import { REFRESH_TOKEN_SECRET, options } from '../constants';
 
 const generateAccessAndRefreshToken = async (userId: string) => {
   try {
@@ -14,7 +14,7 @@ const generateAccessAndRefreshToken = async (userId: string) => {
 
     if (!user) return createError('No user found to create a token', 400);
 
-    const accessToken = await user?.generateAccessToken()
+    const accessToken = await user?.generateAccessToken();
     const refreshToken = await user?.generateRefreshToken();
 
     user.refreshToken = refreshToken;
@@ -107,11 +107,6 @@ const loginUser = asyncHandler(async (req: any, res: any) => {
     '-password-refreshToken'
   );
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-  };
-
   return res
     .status(200)
     .cookie('accessToken', accessToken, options)
@@ -123,6 +118,24 @@ const loginUser = asyncHandler(async (req: any, res: any) => {
         refreshToken,
       })
     );
+});
+
+const logoutUser = asyncHandler(async (req: any, res: any) => {
+  await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        refreshToken: undefined,
+      },
+    },
+    { new: true }
+  );
+
+  return res
+    .status(200)
+    .clearCookie('accessToken', options)
+    .clearCookie('refreshToken', options)
+    .json(success(200, 'User logged out successfully', {}));
 });
 
 const refreshAccessToken = asyncHandler(async (req: any, res: any) => {
@@ -139,8 +152,28 @@ const refreshAccessToken = asyncHandler(async (req: any, res: any) => {
 
     const user = await User.findById(decodedToken?._id);
 
-    if (!user) createError('Invalid refresh token', 401);
-  } catch (error) {}
+    if (!user) return createError('Invalid refresh token', 401);
+
+    if (incomingRefreshToken !== user?.refreshToken)
+      createError('Invalid refresh token', 401);
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      (await generateAccessAndRefreshToken(user._id.toString())) as any;
+
+    return res
+      .status(200)
+      .cookie('accessToken', accessToken, options)
+      .cookie('refreshToken', newRefreshToken, options)
+      .json(
+        success(200, 'Access Token refreshed successfully.', {
+          accessToken,
+          refreshToken: newRefreshToken,
+        })
+      );
+  } catch (error) {
+    logger.error(error);
+    createError('Something went wrong while refreshing access token');
+  }
 });
 
-export { registerUser, loginUser };
+export { registerUser, loginUser, logoutUser, refreshAccessToken };
