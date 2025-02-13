@@ -69,10 +69,6 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-// schema.method('fullName', function fullName() {
-//   return this.firstName + ' ' + this.lastName;
-// });
-
 userSchema.method('comparePassword', async function (password: string) {
   return await bcrypt.compare(password, this.password);
 });
