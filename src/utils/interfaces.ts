@@ -1,3 +1,5 @@
+import { Types } from "mongoose";
+
 interface IUser {
   username: string;
   email: string;
@@ -10,44 +12,44 @@ interface IUser {
 }
 
 interface IVideo {
-  videoFile: string,
-  thumbnail: string,
-  title: string,
-  description: string,
-  duration: string,
-  views: number,
-  isPublished: boolean,
-  owner: string
+  videoFile: string;
+  thumbnail: string;
+  title: string;
+  description: string;
+  duration: number;
+  views: number;
+  isPublished: boolean;
+  owner: Types.ObjectId;
 }
 
 interface ISubscription {
-  subscriber: string,
-  channel: string
+  subscriber: Types.ObjectId;
+  channel: Types.ObjectId;
 }
 
 interface ILike {
-  video: string,
-  comment: string,
-  tweet: string,
-  likedBy: string
+  video: Types.ObjectId;
+  comment: Types.ObjectId;
+  tweet: Types.ObjectId;
+  likedBy: Types.ObjectId;
 }
 
 interface IComment {
-  video: string,
-  owner: string,
-  content: string
+  video: Types.ObjectId;
+  owner: Types.ObjectId;
+  content: string;
 }
 
 interface IPlaylist {
-  owner: string,
-  videos: string,
-  name: string,
-  description: string
+  owner: Types.ObjectId;
+  videos: Types.ObjectId[];
+  name: string;
+  description: string;
 }
 
 interface ITweet {
-  owner: string,
-  content: string
+  owner: Types.ObjectId;
+  content: string;
 }
 
 export { IUser, IVideo, IComment, ILike, IPlaylist, ISubscription, ITweet };

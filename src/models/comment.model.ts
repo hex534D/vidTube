@@ -1,7 +1,12 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
 import mongooseAggregatePaginate from 'mongoose-aggregate-paginate-v2';
+import { IComment } from '../utils/interfaces';
 
-const commentSchema = new Schema(
+interface ICommentsMethods { }
+
+type CommentModel = Model<IComment, {}, ICommentsMethods>;
+
+const commentSchema = new Schema<IComment, CommentModel, ICommentsMethods>(
   {
     content: {
       type: String,
@@ -21,4 +26,4 @@ const commentSchema = new Schema(
 
 commentSchema.plugin(mongooseAggregatePaginate);
 
-export const Comment = mongoose.model('Comment', commentSchema);
+export const Comment = mongoose.model<IComment, CommentModel>('Comment', commentSchema);

@@ -1,6 +1,11 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
+import { ILike } from '../utils/interfaces';
 
-const likesSchema = new Schema(
+interface LikesMethods { }
+
+type LikeModel = Model<ILike, {}, LikesMethods>;
+
+const likesSchema = new Schema<ILike, LikeModel, LikesMethods>(
   {
     video: {
       type: Schema.Types.ObjectId,
@@ -22,4 +27,4 @@ const likesSchema = new Schema(
   { timestamps: true }
 );
 
-export const Like = mongoose.model('Like', likesSchema);
+export const Like = mongoose.model<ILike, LikesMethods>('Like', likesSchema);

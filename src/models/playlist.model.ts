@@ -1,6 +1,11 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Model, Schema } from 'mongoose';
+import { IPlaylist } from '../utils/interfaces';
 
-const playlistSchema = new Schema({
+interface PlaylistMethods { }
+
+type PlaylistModel = Model<IPlaylist, {}, PlaylistMethods>;
+
+const playlistSchema = new Schema<IPlaylist, PlaylistModel, PlaylistMethods>({
   name: {
     type: String,
     required: true,
@@ -21,4 +26,4 @@ const playlistSchema = new Schema({
   ],
 });
 
-export const Playlist = mongoose.model('Playlist', playlistSchema);
+export const Playlist = mongoose.model<IPlaylist, PlaylistModel>('Playlist', playlistSchema);

@@ -1,6 +1,11 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Model, Schema } from 'mongoose';
+import { ITweet } from '../utils/interfaces';
 
-const tweetSchema = new Schema(
+interface TweetMethods {}
+
+type TweetModel = Model<ITweet, {}, TweetMethods>;
+
+const tweetSchema = new Schema<ITweet, TweetModel, TweetMethods>(
   {
     content: {
       type: String,
@@ -14,4 +19,4 @@ const tweetSchema = new Schema(
   { timestamps: true }
 );
 
-export const Tweet = mongoose.model('Tweet', tweetSchema);
+export const Tweet = mongoose.model<ITweet, TweetModel>('Tweet', tweetSchema);
