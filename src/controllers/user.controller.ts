@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
 import logger from '../logging/logger';
 import { User } from '../models/user.model';
@@ -265,6 +266,122 @@ const updateUserCoverImage = asyncHandler(async (req: any, res: any) => {
     .json(success(200, 'Cover image uploaded successfully', { user }));
 });
 
+const getUserChannelProfile = asyncHandler(async (req: any, res: any) => {
+  const { username } = req.params;
+
+  if (!username.trim()) createError('Username is required', 400);
+
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: 'subscriptions',
+        localField: '_id',
+        foreignField: 'channel',
+        as: 'subscribers',
+      },
+    },
+    {
+      $lookup: {
+        from: 'subscriptions',
+        localField: '_id',
+        foreignField: 'subscriber',
+        as: 'subscribedTo',
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: '$subscribers',
+        },
+        channelsSubscribedToCount: {
+          $size: '$subscribedTo',
+        },
+        isSubscribed: {
+          $cond: {
+            if: {
+              $in: [req.user?._id, '$subscribers.subscribe'],
+            },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        avatar: 1,
+        email: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        coverImage: 1,
+      },
+    },
+  ]);
+
+  if (!channel.length) createError('Channel not found', 404);
+
+  res
+    .status(200)
+    .json(success(200, 'Channel data fetch successful', channel[0]));
+});
+
+const getWatchHistory = asyncHandler(async (req: any, res: any) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(`${req.user?.id}`)
+      }
+    },
+    {
+      $lookup: {
+        from: 'videos',
+        localField: 'watchHistory',
+        foreignField: '_id',
+        as: 'watchHistory',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'owner',
+              foreignField: '_id',
+              as: 'owner',
+              pipeline: [
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    avatar: 1
+                  }
+                },
+                {
+                  $addFields: {
+                    owner: {
+                      $first: '$owner'
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]);
+
+  if (!user.length) createError('User not found', 400);
+
+
+  return res.status(200).json(success(200, 'Watch history fetched successfully', user[0]?.watchHistory))
+});
+
 export {
   registerUser,
   loginUser,
@@ -275,4 +392,6 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannelProfile,
+  getWatchHistory
 };
